@@ -1,0 +1,95 @@
+# Gander Social Hybrid Setup - Database and Cache Services
+# This runs only the supporting services in Docker while the AT Protocol services run natively
+
+services:
+  # PostgreSQL for PLC (DID Registry)
+  plc-db:
+    image: postgres:15-alpine
+    container_name: gander-plc-db
+    environment:
+      - POSTGRES_USER=plc
+      - POSTGRES_PASSWORD=plc
+      - POSTGRES_DB=plc_dev
+    ports:
+      - '5433:5432'  # Using 5433 to avoid conflicts with local postgres
+    volumes:
+      - plc-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U plc -d plc_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gander-hybrid
+
+  # PostgreSQL for PDS (Personal Data Server)
+  pds-db:
+    image: postgres:15-alpine
+    container_name: gander-pds-db
+    environment:
+      - POSTGRES_USER=pds
+      - POSTGRES_PASSWORD=pds
+      - POSTGRES_DB=pds_dev
+    ports:
+      - '5434:5432'  # Using 5434 to avoid conflicts
+    volumes:
+      - pds-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pds -d pds_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gander-hybrid
+
+  # PostgreSQL for AppView/Gndr
+  appview-db:
+    image: postgres:15-alpine
+    container_name: gander-appview-db
+    environment:
+      - POSTGRES_USER=appview
+      - POSTGRES_PASSWORD=appview
+      - POSTGRES_DB=appview_dev
+    ports:
+      - '5435:5432'  # Using 5435 to avoid conflicts
+    volumes:
+      - appview-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U appview -d appview_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gander-hybrid
+
+  # Redis for caching (used by AppView/Gndr)
+  redis:
+    image: redis:7-alpine
+    container_name: gander-redis
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gander-hybrid
+
+volumes:
+  plc-db-data:
+    name: gander-plc-db-data
+  pds-db-data:
+    name: gander-pds-db-data
+  appview-db-data:
+    name: gander-appview-db-data
+  redis-data:
+    name: gander-redis-data
+
+networks:
+  gander-hybrid:
+    name: gander-hybrid-network
+    driver: bridge
